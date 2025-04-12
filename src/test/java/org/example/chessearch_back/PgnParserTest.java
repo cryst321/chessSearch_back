@@ -6,26 +6,30 @@ import java.util.List;
 
 public class PgnParserTest {
     public static void main(String[] args) throws Exception {
-        String samplePgn = """
-            [Event "Casual Game"]
-            [Site "Berlin GER"]
-            [Date "1852.??.??"]
-            [EventDate "?"]
-            [Round "?"]
-            [Result "1-0"]
-            [White "Adolf Anderssen"]
-            [Black "Jean Dufresne"]
-            [ECO "C52"]
-            [WhiteElo "?"]
-            [BlackElo "?"]
-            [PlyCount "47"]
 
-            1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.b4 Bxb4 5.c3 Ba5 6.d4 exd4 7.O-O
-            d3 8.Qb3 Qf6 9.e5 Qg6 10.Re1 Nge7 11.Ba3 b5 12.Qxb5 Rb8 13.Qa4
-            Bb6 14.Nbd2 Bb7 15.Ne4 Qf5 16.Bxd3 Qh5 17.Nf6+ gxf6 18.exf6
-            Rg8 19.Rad1 Qxf3 20.Rxe7+ Nxe7 21.Qxd7+ Kxd7 22.Bf5+ Ke8
-            23.Bd7+ Kf8 24.Bxe7# 1-0
-        """;
+        String samplePgn = """
+                    [Event "Rated classical game"]
+                            [Site "https://lichess.org/GfHJot5M"]
+                            [Date "2020.07.24"]
+                            [White "Hamid8785"]
+                            [Black "xXcrystallixXx"]
+                            [Result "0-1"]
+                            [GameId "GfHJot5M"]
+                            [UTCDate "2020.07.24"]
+                            [UTCTime "12:43:52"]
+                            [WhiteElo "1511"]
+                            [BlackElo "1500"]
+                            [WhiteRatingDiff "-16"]
+                            [BlackRatingDiff "+185"]
+                            [Variant "Standard"]
+                            [TimeControl "1800+20"]
+                            [ECO "D02"]
+                            [Opening "Queen's Pawn Game: Chigorin Variation"]
+                            [Termination "Time forfeit"]
+                            [Annotator "lichess.org"]
+                            
+                            1. d4 d5 2. Nf3 Nc6 3. Bg5 f6 4. Bf4 Bf5 5. e3 e5 6. dxe5 fxe5 { White left the game. } 0-1
+                """;
 
         PgnParserService service = new PgnParserService();
         List<String> fens = service.parsePgnToFens(samplePgn);
@@ -34,5 +38,7 @@ public class PgnParserTest {
         for (String fen : fens) {
             System.out.println(fen);
         }
+
+
     }
 }

@@ -37,6 +37,8 @@ public class PgnParserService {
 
             for (Move move : game.getHalfMoves()) {
                 board.doMove(move);
+                String currentFen = board.getFen();
+                System.out.println("After move " + move.toString() + ": " + currentFen);
                 fens.add(board.getFen());
             }
         }
@@ -44,19 +46,5 @@ public class PgnParserService {
 
         return fens;
 
-//        List<String> fens = new ArrayList<>();
-//        PGNLoader loader = new PGNLoader(new StringReader(pgn));
-//        List<Game> games = loader.loadGames();
-//
-//        for (Game game : games) {
-//            Board board = new Board();
-//            fens.add(board.getFen());
-//            for (Move move : game.getHalfMoves()) {
-//                board.doMove(move);
-//                fens.add(board.getFen());
-//            }
-//        }
-//        return fens;
-//    }
     }
 }
