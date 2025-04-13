@@ -1,23 +1,31 @@
 package org.example.chessearch_back.model;
 
 
+import java.time.LocalDate;
+
 public class ChessGame {
-    private Long id;
-    private String pgn;
+        private int id;
+        private String pgn;
+        private String white;
+        private String black;
+        private String result;
+        private String event;
+        private String site;
+        private LocalDate date;
 
     public ChessGame() {
     }
 
-    public ChessGame(Long id, String pgn) {
+    public ChessGame(int id, String pgn) {
         this.id = id;
         this.pgn = pgn;
     }
 
-    public Long getId() {
+    public int getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(int id) {
         this.id = id;
     }
 
