@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST Controller for handling HTTP requests related to translating PGN to FEN
+ */
 @RestController
 @RequestMapping("/api/pgn")
 public class PgnController {

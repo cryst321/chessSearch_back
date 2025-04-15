@@ -6,14 +6,15 @@ import com.github.bhlangonijr.chesslib.move.Move;
 import com.github.bhlangonijr.chesslib.pgn.*;
 import org.springframework.stereotype.Service;
 
-import java.io.StringReader;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * Service layer for business logic related to parsing PGN
+ */
 @Service
 public class PgnParserService {
 

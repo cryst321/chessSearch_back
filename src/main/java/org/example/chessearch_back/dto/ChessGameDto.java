@@ -4,6 +4,10 @@ import org.example.chessearch_back.model.FenPosition;
 
 import java.time.LocalDate;
 import java.util.List;
+
+/**
+ * DTO representing a chess game
+ */
 public class ChessGameDto {
     private String pgn;
     private String white;

@@ -14,6 +14,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
+/**
+ * Script for filling chess_search database
+ */
 public class PgnImporter {
 
     private final PgnParserService pgnParserService;
@@ -23,7 +27,7 @@ public class PgnImporter {
             Connection conn = DriverManager.getConnection(
                     "jdbc:postgresql://localhost:5432/chess_search",
                     "postgres",
-                    "postgres"
+                    "sadcat"
             );
 
             PgnParserService parser = new PgnParserService();
@@ -56,7 +60,7 @@ public class PgnImporter {
 
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("[Event ")) {
-                    if (currentGame.length() > 0) {
+                    if (!currentGame.isEmpty()) {
                         processSingleGame(currentGame.toString());
                         gameCount++;
                         if (gameCount >= maxGames) break;
@@ -66,7 +70,7 @@ public class PgnImporter {
                 currentGame.append(line).append("\n");
             }
 
-            if (currentGame.length() > 0 && gameCount < maxGames) {
+            if (!currentGame.isEmpty() && gameCount < maxGames) {
                 processSingleGame(currentGame.toString());
             }
 

@@ -4,7 +4,7 @@ import com.github.luben.zstd.ZstdInputStream;
 import java.io.*;
 
 /**
- * Decompress large PGN files that contain chess games (.zst)
+ * Decompresses large PGN files that contain chess games (.zst)
  */
 public class ZstDecompressor {
 
