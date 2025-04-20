@@ -17,6 +17,9 @@ public class ChessGameDto {
     private String site;
     private LocalDate date;
     private List<FenPosition> positions;
+    private Integer whiteElo;
+    private Integer blackElo;
+    private String eco;
 
     public String getWhite() {
         return white;
@@ -81,4 +84,11 @@ public class ChessGameDto {
     public void setPositions(List<FenPosition> positions) {
         this.positions = positions;
     }
+
+    public Integer getWhiteElo() { return whiteElo; }
+    public void setWhiteElo(Integer whiteElo) { this.whiteElo = whiteElo; }
+    public Integer getBlackElo() { return blackElo; }
+    public void setBlackElo(Integer blackElo) { this.blackElo = blackElo; }
+    public String getEco() { return eco; }
+    public void setEco(String eco) { this.eco = eco; }
 }

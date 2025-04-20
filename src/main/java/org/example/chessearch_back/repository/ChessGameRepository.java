@@ -42,6 +42,22 @@ public class ChessGameRepository {
             }
 
             game.setPgn(rs.getString("pgn"));
+
+            int whiteEloInt = rs.getInt("whiteelo");
+            if (!rs.wasNull()) {
+                game.setWhiteElo(whiteEloInt);
+            } else {
+                game.setWhiteElo(null);
+            }
+
+            int blackEloInt = rs.getInt("blackelo");
+            if (!rs.wasNull()) {
+                game.setBlackElo(blackEloInt);
+            } else {
+                game.setBlackElo(null);
+            }
+
+            game.setEco(rs.getString("eco"));
             return game;
         }
     }

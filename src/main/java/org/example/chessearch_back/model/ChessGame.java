@@ -13,6 +13,10 @@ public class ChessGame {
         private String site;
         private LocalDate date;
 
+    private Integer whiteElo;
+    private Integer blackElo;
+    private String eco;
+
     public ChessGame() {
     }
 

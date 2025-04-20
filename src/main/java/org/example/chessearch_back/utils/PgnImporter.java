@@ -147,8 +147,9 @@ public class PgnImporter {
     }
     private int insertPgnIntoDb(Map<String, String> tags, String pgnText) throws SQLException {
         String sql = """
-                INSERT INTO chess_game (pgn, white, black, result, event, site, date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO chess_game 
+                (pgn, white, black, result, event, site, date, whiteelo, blackelo, eco) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """;
         try (PreparedStatement stmt = db.prepareStatement(sql)) {
@@ -159,16 +160,36 @@ public class PgnImporter {
             stmt.setString(5, tags.get("Event"));
             stmt.setString(6, tags.get("Site"));
             stmt.setObject(7, parseDate(tags.get("UTCDate")));
+            Integer whiteElo = parseInt(tags.get("WhiteElo"));
+            if (whiteElo != null) {
+                stmt.setInt(8, whiteElo);
+            } else {
+                stmt.setNull(8, java.sql.Types.INTEGER);
+            }
 
+            Integer blackElo = parseInt(tags.get("BlackElo"));
+            if (blackElo != null) {
+                stmt.setInt(9, blackElo);
+            } else {
+                stmt.setNull(9, java.sql.Types.INTEGER);
+            }
+
+            stmt.setString(10, tags.get("ECO"));
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return rs.getInt(1);
             } else {
-                throw new SQLException("Failed to insert PGN, no ID.");
+                throw new SQLException("Failed to retrieve ID after PGN insertion.");
             }
         } catch (SQLException e) {
-            System.err.println("SQL Error inserting game with tags: " + tags);
+            System.err.println("SQL Error inserting game. SQLState: " + e.getSQLState() + ", ErrorCode: " + e.getErrorCode());
+            System.err.println("Failed PGN Tags: " + tags);
+            System.err.println("Failed PGN Text (start): " + pgnText.substring(0, Math.min(200, pgnText.length())) + "...");
             throw e;
+        } catch (Exception e) {
+            System.err.println("Non-SQL Error during PGN insertion preparation for tags: " + tags);
+            e.printStackTrace();
+            throw new SQLException("Error preparing PGN insertion statement", e);
         }
     }
     private void insertFens(int pgnId, List<String> fens) throws SQLException {
