@@ -45,7 +45,7 @@ public class ChessGameService {
      */
     @Transactional(readOnly = true)
     public Optional<ChessGameDto> getGameById(int id) {
-        log.debug("Attempting to retrieve game with ID: {}", id); // Optional logging
+        log.debug("Attempting to retrieve game with ID: {}", id);
         try {
             ChessGameDto gameDto = chessGameRepository.findById(id);
             log.debug("Found game details for ID: {}", id);
