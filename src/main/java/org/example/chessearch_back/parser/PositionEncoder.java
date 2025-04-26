@@ -23,8 +23,9 @@ public class PositionEncoder {
     }
     public static void main(String[] args) {
         // Kh1, Qh7, kb6
-        String testFen = "8/7Q/1k6/8/8/8/8/7K w - - 0 1";
-
+       // String testFen = "8/7Q/1k6/8/8/8/8/7K w - - 0 1";
+        // Kh1, Nc6, bf3, ph2, kb6
+        String testFen = "8/8/1kN5/8/8/5b2/7p/7K w - - 0 1";
         System.out.println("Testing FEN: " + testFen);
 
         PositionEncoder encoder = new PositionEncoder();
@@ -77,7 +78,7 @@ public class PositionEncoder {
 
         allTerms.addAll(generateTruePositionTerms(board));
         allTerms.addAll(generateReachableTerms(board));
-        // allTerms.addAll(generateAttackTerms(board));       //TODO: implement
+        allTerms.addAll(generateAttackTerms(board));
         // allTerms.addAll(generateDefenseTerms(board));      //TODO: implement
         // allTerms.addAll(generateRayAttackTerms(board));    //TODO: implement
         return allTerms;
@@ -209,10 +210,46 @@ public class PositionEncoder {
 
 
 
-    // private List<String> generateAttackTerms(Board board) {
-    //     List<String> attackTerms = new ArrayList<>();
-    //     return attackTerms;
-    // }
+    private List<String> generateAttackTerms(Board board) {
+        List<String> attackTerms = new ArrayList<>();
+        generateAttackTermsForSide(board, Side.WHITE, attackTerms);
+        generateAttackTermsForSide(board, Side.BLACK, attackTerms);
+        return attackTerms;
+    }
+
+    private void generateAttackTermsForSide(Board board, Side attackingSide, List<String> attackTerms) {
+        Side originalSideToMove = board.getSideToMove();
+        board.setSideToMove(attackingSide);
+
+        List<Move> legalMoves;
+        try {
+            legalMoves = board.legalMoves();
+        } catch (MoveGeneratorException e) {
+            System.err.println("Error generating legal moves for attack check (player " + attackingSide + ") FEN: " + board.getFen() + " - " + e.getMessage());
+            board.setSideToMove(originalSideToMove);
+            return;
+        } finally {
+            board.setSideToMove(originalSideToMove);
+        }
+
+        for (Move move : legalMoves) {
+            Square fromSquare = move.getFrom();
+            Square toSquare = move.getTo();
+            Piece attackerPiece = board.getPiece(fromSquare);
+            Piece attackedPiece = board.getPiece(toSquare);
+
+            if (attackedPiece != null && attackedPiece != Piece.NONE && attackedPiece.getPieceSide() != attackingSide) {
+
+                String attackerNotation = getPieceNotation(attackerPiece);
+                String attackedNotation = getPieceNotation(attackedPiece);
+                String targetSquareNotation = toSquare.toString().toLowerCase();
+
+                if (attackerNotation != null && attackedNotation != null) {
+                    attackTerms.add(attackerNotation + ">" + attackedNotation + targetSquareNotation);
+                }
+            }
+        }
+    }
 
     // private List<String> generateDefenseTerms(Board board) {
     //     List<String> defenseTerms = new ArrayList<>();
