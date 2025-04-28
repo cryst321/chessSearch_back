@@ -25,10 +25,12 @@ public class PositionEncoder {
         // Kh1, Qh7, kb6
        // String testFen = "8/7Q/1k6/8/8/8/8/7K w - - 0 1";
         // Kh1, Nc6, bf3, ph2, kb6
-        // testFen = "8/8/1kN5/8/8/5b2/7p/7K w - - 0 1";
+//         String testFen = "8/8/1kN5/8/8/5b2/7p/7K w - - 0 1";
         // Kh1, Nc6, bf3, ph2, kb6
-        String testFen = "8/8/1k6/8/5b2/3N4/5N1p/7K w - - 0 1";
-        System.out.println("Testing FEN: " + testFen);
+     String testFen = "7K/8/k7/2P5/5b2/3N4/5N1p/8 w - - 0 1";
+      //  String testFen = "8/8/1kp5/1p6/5N2/3b4/8/2RR3K w - - 0 1";
+
+//        System.out.println("Testing FEN: " + testFen);
 
         PositionEncoder encoder = new PositionEncoder();
         try {
@@ -120,7 +122,7 @@ public class PositionEncoder {
 
         PieceType type = piece.getPieceType();
         Side side = piece.getPieceSide();
-        String notation = "";
+        String notation;
 
         switch (type) {
             case PAWN:   notation = "p"; break;
@@ -261,46 +263,80 @@ public class PositionEncoder {
      * @param board The current board
      * @return defense terms
      */
+    // Helper function for Defense Terms (REVISED - Color Flipping)
+    // ======================================================
     private List<String> generateDefenseTerms(Board board) {
         List<String> defenseTerms = new ArrayList<>();
-        generateDefenseTermsForSide(board, Side.WHITE, defenseTerms);
-        generateDefenseTermsForSide(board, Side.BLACK, defenseTerms);
+        for (Square targetSquare : Square.values()) {
+            Piece defendedPiece = board.getPiece(targetSquare);
+
+            //black squares and kings don't count
+            if (defendedPiece != null && defendedPiece != Piece.NONE && defendedPiece != Piece.BLACK_KING  && defendedPiece != Piece.WHITE_KING) {
+                Side defendingSide = defendedPiece.getPieceSide();
+                Side opponentSide = defendingSide.flip();
+                PieceType defendedType = defendedPiece.getPieceType();
+
+                //System.out.println("----------DEBUG: Checking defense for " + getPieceNotation(defendedPiece) + " on " + targetSquare.toString().toLowerCase());
+
+                Piece tempOpponentPiece = Piece.make(opponentSide, defendedType);
+                if (tempOpponentPiece == null) {
+                    System.err.println("ERROR: Could not create temporary opponent piece for type " + defendedType);
+                    continue;
+                }
+                else System.out.println(tempOpponentPiece);
+
+                Side originalSideToMove = board.getSideToMove();
+                board.unsetPiece(defendedPiece,targetSquare);
+                board.setPiece(tempOpponentPiece, targetSquare);
+                board.setSideToMove(defendingSide);
+
+                 System.out.println("DEBUG: Board state for defense check:\n" + board);
+                System.out.println(board.getFen());
+                List<Move> opponentMoves;
+                try {
+                    opponentMoves = board.legalMoves();
+                    System.out.println("DEBUG: Found " + opponentMoves.size() + " legal moves for " + defendingSide);
+
+                } catch (Exception e) {
+                    System.err.println("Error generating moves for defense check (opponent " + opponentSide + ") FEN: " + board.getFen() + " - " + e.getMessage());
+                    opponentMoves = new ArrayList<>();
+                }
+
+                for (Move move : opponentMoves) {
+                  //  System.out.print(move + "=> ");
+                  //  System.out.println(board.getPiece(move.getTo()) + " target square: " + targetSquare + ", ");
+                    if (move.getTo() == targetSquare) {
+                     //   System.out.println(board.getPiece(targetSquare));
+                        Square defenderSquare = move.getFrom();
+                        Piece defenderPiece = board.getPiece(defenderSquare);
+                       // System.out.println(defenderPiece + " defends " + defendedPiece);
+                        System.out.println("DEBUG: Potential defender found: " + getPieceNotation(defenderPiece) + " on " + defenderSquare.toString().toLowerCase() + " targeting " + targetSquare.toString().toLowerCase());
+
+                        if (defenderPiece != null && defenderPiece != Piece.NONE && defenderPiece.getPieceSide() == defendingSide) {
+                            String defenderNotation = getPieceNotation(defenderPiece);
+                            String defendedNotation = getPieceNotation(defendedPiece);
+                            String targetSquareNotation = targetSquare.toString().toLowerCase();
+
+                            if (defenderNotation != null && defendedNotation != null) {
+                                String defenseTerm = defenderNotation + "<" + defendedNotation + targetSquareNotation;
+                                System.out.println("DEBUG: Adding defense term: " + defenseTerm);
+                                defenseTerms.add(defenseTerm);
+                            }
+                        } else {
+                            System.out.println("DEBUG: Defender piece check failed for piece on " + defenderSquare + " (Piece: " + defenderPiece + ", Expected Side: " + defendingSide + ")");
+                        }
+                    }
+                }
+                board.setPiece(defendedPiece, targetSquare);
+                board.setSideToMove(originalSideToMove);
+            }
+
+        }
+        System.out.println("DEBUG: Finished generateDefenseTerms. Found " + defenseTerms.size() + " terms.");
         return defenseTerms;
     }
 
-    private void generateDefenseTermsForSide(Board board, Side defendingSide, List<String> defenseTerms) {
-        Side originalSideToMove = board.getSideToMove();
-        board.setSideToMove(defendingSide);
 
-        List<Move> legalMoves;
-        try {
-            legalMoves = board.legalMoves();
-        } catch (MoveGeneratorException e) {
-            System.err.println("Error generating legal moves for defense check (side " + defendingSide + ") FEN: " + board.getFen() + " - " + e.getMessage());
-            board.setSideToMove(originalSideToMove);
-            return;
-        } finally {
-            board.setSideToMove(originalSideToMove);
-        }
-
-        for (Move move : legalMoves) {
-            Square fromSquare = move.getFrom();
-            Square toSquare = move.getTo();
-            Piece defenderPiece = board.getPiece(fromSquare);
-            Piece defendedPiece = board.getPiece(toSquare);
-
-            if (defendedPiece != null && defendedPiece != Piece.NONE && defendedPiece.getPieceSide() == defendingSide) {
-
-                String defenderNotation = getPieceNotation(defenderPiece);
-                String defendedNotation = getPieceNotation(defendedPiece);
-                String targetSquareNotation = toSquare.toString().toLowerCase();
-
-                if (defenderNotation != null && defendedNotation != null) {
-                    defenseTerms.add(defenderNotation + "<" + defendedNotation + targetSquareNotation);
-                }
-            }
-        }
-    }
     // private List<String> generateRayAttackTerms(Board board) {
     //     List<String> rayAttackTerms = new ArrayList<>();
     //     return rayAttackTerms;
