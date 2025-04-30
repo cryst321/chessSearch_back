@@ -8,15 +8,16 @@ import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
 import com.github.bhlangonijr.chesslib.move.MoveGeneratorException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Encodes a chess position (FEN) into a list of terms based on the approach described in Ganguly et al., SIGIR 2014.
  */
 public class PositionEncoder {
+    private static final int[][] ROOK_OFFSETS = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+    private static final int[][] BISHOP_OFFSETS = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+    private static final int[][] QUEEN_OFFSETS = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+
 
 
     public PositionEncoder() {
@@ -24,11 +25,37 @@ public class PositionEncoder {
     public static void main(String[] args) {
         // Kh1, Qh7, kb6
        // String testFen = "8/7Q/1k6/8/8/8/8/7K w - - 0 1";
+
         // Kh1, Nc6, bf3, ph2, kb6
-//         String testFen = "8/8/1kN5/8/8/5b2/7p/7K w - - 0 1";
-        // Kh1, Nc6, bf3, ph2, kb6
-     String testFen = "7K/8/k7/2P5/5b2/3N4/5N1p/8 w - - 0 1";
+     //  String testFen = "8/8/1kN5/8/8/5b2/7p/7K w - -
+
+        // Nf2 ph2 Nd3 bf4 Pc5 ka6 Kh8
+        // String testFen = "7K/8/k7/2P5/5b2/3N4/5N1p/8 w - - 0 1";
       //  String testFen = "8/8/1kp5/1p6/5N2/3b4/8/2RR3K w - - 0 1";
+
+        // Qc1 Rf1 Pd2 Nf2 ph2 Nd3 bf4 Pc5 ka6 Kh8
+       // String testFen = "7K/8/k7/2P2p2/5b2/3N4/3P1N1p/2Q2R2 w - - 0 1";
+
+        // weird castling
+       // String testFen = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
+
+        //Ra1 Re1 Kg1 Pe2 qd3 ke8 - ray attack king, rooks defend each other
+       // String testFen = "4k3/8/8/8/8/3q4/4P3/R3R1K1 w Q - 0 1";
+
+        //debut position pinned knight
+        //String testFen = "rnb1kbnr/pp1p1ppp/8/q1p1p3/3PPP2/2N5/PPP3PP/R1BQKBNR w KQkq - 0 1";
+
+        //pawn promotion and two kings
+        //String testFen = "k7/4P3/8/8/8/8/8/K7 w - - 0 1";
+
+        //complex crowded position
+        //String testFen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+
+        //mutual ray attacks, defenses of pawns
+        //String testFen = "1k1r4/pp1b1pbp/2p1p1p1/4P3/2P2P2/1P4P1/PB4BP/3R2K1 w - - 0 1";
+
+        //stalemate
+        String testFen = "7k/5Q2/8/8/8/8/6P1/7K b - - 0 1";
 
 //        System.out.println("Testing FEN: " + testFen);
 
@@ -80,11 +107,17 @@ public class PositionEncoder {
         }
         List<String> allTerms = new ArrayList<>();
 
-        allTerms.addAll(generateTruePositionTerms(board));
-        allTerms.addAll(generateReachableTerms(board));
-        allTerms.addAll(generateAttackTerms(board));
-        allTerms.addAll(generateDefenseTerms(board));
-        // allTerms.addAll(generateRayAttackTerms(board));    //TODO: implement
+        List<String> truePositionTerms = generateTruePositionTerms(board);
+        List<String> reachableTerms = generateReachableTerms(board);
+        List<String> attackTerms = generateAttackTerms(board);
+        List<String> defenseTerms = generateDefenseTerms(board);
+        List<String> rayAttackTerms = generateRayAttackTerms(board);
+
+        allTerms.addAll(truePositionTerms);
+        allTerms.addAll(reachableTerms);
+        allTerms.addAll(attackTerms);
+        allTerms.addAll(defenseTerms);
+        allTerms.addAll(rayAttackTerms);
         return allTerms;
     }
 
@@ -263,14 +296,12 @@ public class PositionEncoder {
      * @param board The current board
      * @return defense terms
      */
-    // Helper function for Defense Terms (REVISED - Color Flipping)
-    // ======================================================
     private List<String> generateDefenseTerms(Board board) {
         List<String> defenseTerms = new ArrayList<>();
         for (Square targetSquare : Square.values()) {
             Piece defendedPiece = board.getPiece(targetSquare);
 
-            //black squares and kings don't count
+            //blank squares and kings don't count
             if (defendedPiece != null && defendedPiece != Piece.NONE && defendedPiece != Piece.BLACK_KING  && defendedPiece != Piece.WHITE_KING) {
                 Side defendingSide = defendedPiece.getPieceSide();
                 Side opponentSide = defendingSide.flip();
@@ -289,13 +320,15 @@ public class PositionEncoder {
                 board.unsetPiece(defendedPiece,targetSquare);
                 board.setPiece(tempOpponentPiece, targetSquare);
                 board.setSideToMove(defendingSide);
-
-                 System.out.println("DEBUG: Board state for defense check:\n" + board);
+                System.out.println("DEBUG: Board state for defense check:\n" + board);
                 System.out.println(board.getFen());
                 List<Move> opponentMoves;
                 try {
                     opponentMoves = board.legalMoves();
                     System.out.println("DEBUG: Found " + opponentMoves.size() + " legal moves for " + defendingSide);
+                    //List<Move> pseudo = board.pseudoLegalMoves();
+                    //System.out.println("DEBUG: Found " + pseudo.size() + " pseudo moves for " + defendingSide);
+
 
                 } catch (Exception e) {
                     System.err.println("Error generating moves for defense check (opponent " + opponentSide + ") FEN: " + board.getFen() + " - " + e.getMessage());
@@ -303,10 +336,10 @@ public class PositionEncoder {
                 }
 
                 for (Move move : opponentMoves) {
-                  //  System.out.print(move + "=> ");
-                  //  System.out.println(board.getPiece(move.getTo()) + " target square: " + targetSquare + ", ");
-                    if (move.getTo() == targetSquare) {
-                     //   System.out.println(board.getPiece(targetSquare));
+                   System.out.print(move + "=> ");
+                    System.out.println(board.getPiece(move.getTo()) + " target square: " + targetSquare + ", ");
+                    if (move.getTo().toString().equals(targetSquare.toString())) {
+                        System.out.println(board.getPiece(targetSquare));
                         Square defenderSquare = move.getFrom();
                         Piece defenderPiece = board.getPiece(defenderSquare);
                        // System.out.println(defenderPiece + " defends " + defendedPiece);
@@ -327,6 +360,7 @@ public class PositionEncoder {
                         }
                     }
                 }
+                board.unsetPiece(tempOpponentPiece,targetSquare);
                 board.setPiece(defendedPiece, targetSquare);
                 board.setSideToMove(originalSideToMove);
             }
@@ -336,10 +370,72 @@ public class PositionEncoder {
         return defenseTerms;
     }
 
+    /**
+     * Helper method to get ray attack terms
+     * @param board The current board
+     * @return ray attack terms
+     */
+    private List<String> generateRayAttackTerms(Board board) {
+        List<String> rayAttackTerms = new ArrayList<>();
 
-    // private List<String> generateRayAttackTerms(Board board) {
-    //     List<String> rayAttackTerms = new ArrayList<>();
-    //     return rayAttackTerms;
-    // }
+        for (Square fromSquare : Square.values()) {
+            Piece attackerPiece = board.getPiece(fromSquare);
+
+            if (attackerPiece != null && attackerPiece != Piece.NONE &&
+                    (attackerPiece.getPieceType() == PieceType.ROOK ||
+                            attackerPiece.getPieceType() == PieceType.BISHOP ||
+                            attackerPiece.getPieceType() == PieceType.QUEEN)) {
+
+                int[][] offsets;
+                if (attackerPiece.getPieceType() == PieceType.ROOK) {
+                    offsets = ROOK_OFFSETS;
+                } else if (attackerPiece.getPieceType() == PieceType.BISHOP) {
+                    offsets = BISHOP_OFFSETS;
+                } else {
+                    offsets = QUEEN_OFFSETS;
+                }
+
+                String attackerNotation = getPieceNotation(attackerPiece);
+                Side attackerSide = attackerPiece.getPieceSide();
+
+                for (int[] offset : offsets) {
+                    int fileOffset = offset[0];
+                    int rankOffset = offset[1];
+
+                    boolean foundIntermediatePiece = false;
+
+                    for (int i = 1; i < 8; i++) {
+                        int currentFile = fromSquare.getFile().ordinal() + i * fileOffset;
+                        int currentRank = fromSquare.getRank().ordinal() + i * rankOffset;
+
+                        //check for end of the board**/
+                        if (currentFile < 0 || currentFile > 7 || currentRank < 0 || currentRank > 7) {
+                            break;
+                        }
+
+                        Square raySquare = Square.squareAt(currentFile + currentRank * 8);
+                        Piece pieceOnRay = board.getPiece(raySquare);
+
+                        if (pieceOnRay != null && pieceOnRay != Piece.NONE) {
+                            //ray attack occurs if there is an opponent piece on path, and intervening piece exists
+                            if (pieceOnRay.getPieceSide() != attackerSide && foundIntermediatePiece) {
+                                String attackedNotation = getPieceNotation(pieceOnRay);
+                                String targetSquareNotation = raySquare.toString().toLowerCase();
+
+                                if (attackerNotation != null && attackedNotation != null) {
+                                    //R=qd8
+                                    rayAttackTerms.add(attackerNotation + "=" + attackedNotation + targetSquareNotation);
+                                }
+                            }
+
+                            foundIntermediatePiece = true;
+
+                        }
+                    }
+                }
+            }
+        }
+        return rayAttackTerms;
+    }
 
 }
