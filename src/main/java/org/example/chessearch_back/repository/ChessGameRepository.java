@@ -131,4 +131,10 @@ public class ChessGameRepository {
 
         return jdbcTemplate.query(sql, new GamePreviewDtoRowMapper(), limit, offset);
     }
+
+    public List<Integer> findAllGameIds() {
+        String sql = "SELECT id FROM chess_game ORDER BY id";
+
+        return jdbcTemplate.queryForList(sql, Integer.class);
+    }
 }

@@ -24,6 +24,9 @@ repositories {
 }
 
 dependencies {
+    implementation("org.apache.lucene:lucene-core:9.10.0")
+    implementation("org.apache.lucene:lucene-analysis-common:9.10.0")
+    implementation("org.apache.lucene:lucene-queryparser:9.10.0")
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")

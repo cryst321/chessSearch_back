@@ -7,12 +7,14 @@ import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
 import com.github.bhlangonijr.chesslib.move.MoveGeneratorException;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 
 /**
  * Encodes a chess position (FEN) into a list of terms based on the approach described in Ganguly et al., SIGIR 2014.
  */
+@Component
 public class PositionEncoder {
     private static final int[][] ROOK_OFFSETS = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
     private static final int[][] BISHOP_OFFSETS = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
@@ -314,18 +316,18 @@ public class PositionEncoder {
                     System.err.println("ERROR: Could not create temporary opponent piece for type " + defendedType);
                     continue;
                 }
-                else System.out.println(tempOpponentPiece);
+               // else System.out.println(tempOpponentPiece);
 
                 Side originalSideToMove = board.getSideToMove();
                 board.unsetPiece(defendedPiece,targetSquare);
                 board.setPiece(tempOpponentPiece, targetSquare);
                 board.setSideToMove(defendingSide);
-                System.out.println("DEBUG: Board state for defense check:\n" + board);
-                System.out.println(board.getFen());
+               // System.out.println("DEBUG: Board state for defense check:\n" + board);
+             //   System.out.println(board.getFen());
                 List<Move> opponentMoves;
                 try {
                     opponentMoves = board.legalMoves();
-                    System.out.println("DEBUG: Found " + opponentMoves.size() + " legal moves for " + defendingSide);
+                   // System.out.println("DEBUG: Found " + opponentMoves.size() + " legal moves for " + defendingSide);
                     //List<Move> pseudo = board.pseudoLegalMoves();
                     //System.out.println("DEBUG: Found " + pseudo.size() + " pseudo moves for " + defendingSide);
 
@@ -336,14 +338,14 @@ public class PositionEncoder {
                 }
 
                 for (Move move : opponentMoves) {
-                   System.out.print(move + "=> ");
-                    System.out.println(board.getPiece(move.getTo()) + " target square: " + targetSquare + ", ");
+                  // System.out.print(move + "=> ");
+                   // System.out.println(board.getPiece(move.getTo()) + " target square: " + targetSquare + ", ");
                     if (move.getTo().toString().equals(targetSquare.toString())) {
-                        System.out.println(board.getPiece(targetSquare));
+                      //  System.out.println(board.getPiece(targetSquare));
                         Square defenderSquare = move.getFrom();
                         Piece defenderPiece = board.getPiece(defenderSquare);
                        // System.out.println(defenderPiece + " defends " + defendedPiece);
-                        System.out.println("DEBUG: Potential defender found: " + getPieceNotation(defenderPiece) + " on " + defenderSquare.toString().toLowerCase() + " targeting " + targetSquare.toString().toLowerCase());
+                        //System.out.println("DEBUG: Potential defender found: " + getPieceNotation(defenderPiece) + " on " + defenderSquare.toString().toLowerCase() + " targeting " + targetSquare.toString().toLowerCase());
 
                         if (defenderPiece != null && defenderPiece != Piece.NONE && defenderPiece.getPieceSide() == defendingSide) {
                             String defenderNotation = getPieceNotation(defenderPiece);
@@ -352,11 +354,11 @@ public class PositionEncoder {
 
                             if (defenderNotation != null && defendedNotation != null) {
                                 String defenseTerm = defenderNotation + "<" + defendedNotation + targetSquareNotation;
-                                System.out.println("DEBUG: Adding defense term: " + defenseTerm);
+                                //System.out.println("DEBUG: Adding defense term: " + defenseTerm);
                                 defenseTerms.add(defenseTerm);
                             }
                         } else {
-                            System.out.println("DEBUG: Defender piece check failed for piece on " + defenderSquare + " (Piece: " + defenderPiece + ", Expected Side: " + defendingSide + ")");
+                           // System.out.println("DEBUG: Defender piece check failed for piece on " + defenderSquare + " (Piece: " + defenderPiece + ", Expected Side: " + defendingSide + ")");
                         }
                     }
                 }
@@ -366,7 +368,7 @@ public class PositionEncoder {
             }
 
         }
-        System.out.println("DEBUG: Finished generateDefenseTerms. Found " + defenseTerms.size() + " terms.");
+        //System.out.println("DEBUG: Finished generateDefenseTerms. Found " + defenseTerms.size() + " terms.");
         return defenseTerms;
     }
 

@@ -4,10 +4,10 @@ import org.example.chessearch_back.dto.ChessGameDto;
 import org.example.chessearch_back.dto.GamePreviewDto;
 import org.example.chessearch_back.service.ChessGameService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity; // Used for crafting HTTP responses (status, headers, body)
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.slf4j.Logger; // Optional: For logging
-import org.slf4j.LoggerFactory; // Optional: For logging
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
