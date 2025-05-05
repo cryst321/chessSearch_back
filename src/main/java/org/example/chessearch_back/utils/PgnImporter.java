@@ -99,7 +99,7 @@ public class PgnImporter {
             StringBuilder currentGamePgn = new StringBuilder();
             String line;
             int gameCount = 0;
-            int maxGames = 100;
+            int maxGames = 5000;
             long startTime = System.currentTimeMillis();
 
             while ((line = reader.readLine()) != null) {
