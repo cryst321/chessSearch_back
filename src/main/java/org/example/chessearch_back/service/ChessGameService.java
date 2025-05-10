@@ -2,6 +2,7 @@ package org.example.chessearch_back.service;
 
 import org.example.chessearch_back.dto.ChessGameDto;
 import org.example.chessearch_back.dto.GamePreviewDto;
+import org.example.chessearch_back.dto.PaginatedGamePreviewsDto;
 import org.example.chessearch_back.model.FenPosition;
 import org.example.chessearch_back.repository.ChessGameRepository;
 import org.example.chessearch_back.repository.FenPositionRepository;
@@ -66,6 +67,7 @@ public class ChessGameService {
         }
     }
 
+
     /**
      * Retrieves a paginated list of game previews
      * @param pageNumber page number
@@ -73,18 +75,20 @@ public class ChessGameService {
      * @return A List of {@link GamePreviewDto} or an empty list
      */
     @Transactional(readOnly = true)
-    public List<GamePreviewDto> getGamePreviews(int pageNumber, int pageSize) {
+    public PaginatedGamePreviewsDto getGamePreviews(int pageNumber, int pageSize) {
         int offset = pageNumber * pageSize;
         log.debug("Fetching game previews with limit={}, offset={}", pageSize, offset);
 
         try {
-            return chessGameRepository.findGamePreviews(pageSize, offset);
+            List<GamePreviewDto> previews = chessGameRepository.findGamePreviews(pageSize, offset);
+            long totalGames = chessGameRepository.countTotalGames();
+
+            return new PaginatedGamePreviewsDto(previews, totalGames, pageNumber, pageSize);
+
         } catch (Exception e) {
             log.error("Error fetching game previews: page={}, size={}, error={}",
                     pageNumber, pageSize, e.getMessage(), e);
-            return Collections.emptyList();
+            return new PaginatedGamePreviewsDto(Collections.emptyList(), 0, pageNumber, pageSize);
         }
     }
-
-
 }

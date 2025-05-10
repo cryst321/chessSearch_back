@@ -137,4 +137,10 @@ public class ChessGameRepository {
 
         return jdbcTemplate.queryForList(sql, Integer.class);
     }
+
+    public long countTotalGames() {
+        String sql = "SELECT COUNT(*) FROM chess_game";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class);
+        return (count != null) ? count : 0L;
+    }
 }

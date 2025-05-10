@@ -2,6 +2,7 @@ package org.example.chessearch_back.controller;
 
 import org.example.chessearch_back.dto.ChessGameDto;
 import org.example.chessearch_back.dto.GamePreviewDto;
+import org.example.chessearch_back.dto.PaginatedGamePreviewsDto;
 import org.example.chessearch_back.service.ChessGameService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -61,7 +62,7 @@ public class ChessGameController {
       * @param size The number of items per page. Default 10
       * @return A ResponseEntity containing a List of GamePreviewDto and HTTP status 200 (OK)*/
     @GetMapping
-    public ResponseEntity<List<GamePreviewDto>> findGamePreviews(
+    public ResponseEntity<PaginatedGamePreviewsDto> findGamePreviews(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
@@ -83,10 +84,15 @@ public class ChessGameController {
         }
 
 
-        List<GamePreviewDto> previews = chessGameService.getGamePreviews(effectivePage, effectiveSize);
-        log.info("Returning {} game previews for page={}, size={}", previews.size(), effectivePage, effectiveSize);
+        PaginatedGamePreviewsDto paginatedPreviews = chessGameService.getGamePreviews(effectivePage, effectiveSize);
 
-        return ResponseEntity.ok(previews);
+        log.info("Returning {} game previews (total games: {}) for page={}, size={}",
+                paginatedPreviews.getPreviews().size(),
+                paginatedPreviews.getTotalGames(),
+                effectivePage,
+                effectiveSize);
+
+        return ResponseEntity.ok(paginatedPreviews);
     }
 
 }
