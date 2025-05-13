@@ -2,10 +2,12 @@ package org.example.chessearch_back.repository;
 
 import org.example.chessearch_back.model.FenPosition;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -42,5 +44,28 @@ public class FenPositionRepository {
         String sql = "SELECT * FROM fen_position WHERE game_id = ? ORDER BY move_number";
         return jdbcTemplate.query(sql, new FenPositionRowMapper(), gameId);
 
+    }
+
+    public void saveBatch(List<FenPosition> fenPositions) {
+        if (fenPositions == null || fenPositions.isEmpty()) {
+            return;
+        }
+
+        String sql = "INSERT INTO fen_position (game_id, move_number, fen) VALUES (?, ?, ?)";
+
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                FenPosition fenPos = fenPositions.get(i);
+                ps.setInt(1, fenPos.getGameId());
+                ps.setInt(2, fenPos.getMoveNumber());
+                ps.setString(3, fenPos.getFen());
+            }
+
+            @Override
+            public int getBatchSize() {
+                return fenPositions.size();
+            }
+        });
     }
 }

@@ -226,18 +226,6 @@ public class PgnImporter {
         }
     }
 
-    private LocalTime parseTime(String timeStr) {
-        if (timeStr == null || timeStr.contains("?") || timeStr.trim().isEmpty()) {
-            return null;
-        }
-        try {
-            return LocalTime.parse(timeStr.trim());
-        } catch (DateTimeParseException e) {
-            System.err.println("Could not parse time: '" + timeStr + "' - " + e.getMessage());
-            return null;
-        }
-    }
-
     private Integer parseInt(String s) {
         if (s == null || s.trim().isEmpty() || s.equals("?")) {
             return null;

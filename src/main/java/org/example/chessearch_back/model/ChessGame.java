@@ -10,7 +10,8 @@ public class ChessGame {
         private String black;
         private String result;
         private String event;
-        private String site;
+
+    private String site;
         private LocalDate date;
 
     private Integer whiteElo;
@@ -39,6 +40,77 @@ public class ChessGame {
 
     public void setPgn(String pgn) {
         this.pgn = pgn;
+    }
+    public String getWhite() {
+        return white;
+    }
+
+    public void setWhite(String white) {
+        this.white = white;
+    }
+
+    public String getBlack() {
+        return black;
+    }
+
+    public void setBlack(String black) {
+        this.black = black;
+    }
+
+    public String getResult() {
+        return result;
+    }
+
+    public void setResult(String result) {
+        this.result = result;
+    }
+
+    public String getEvent() {
+        return event;
+    }
+
+    public void setEvent(String event) {
+        this.event = event;
+    }
+
+    public String getSite() {
+        return site;
+    }
+
+    public void setSite(String site) {
+        this.site = site;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+
+    public Integer getWhiteElo() {
+        return whiteElo;
+    }
+
+    public void setWhiteElo(Integer whiteElo) {
+        this.whiteElo = whiteElo;
+    }
+
+    public Integer getBlackElo() {
+        return blackElo;
+    }
+
+    public void setBlackElo(Integer blackElo) {
+        this.blackElo = blackElo;
+    }
+
+    public String getEco() {
+        return eco;
+    }
+
+    public void setEco(String eco) {
+        this.eco = eco;
     }
 
     @Override

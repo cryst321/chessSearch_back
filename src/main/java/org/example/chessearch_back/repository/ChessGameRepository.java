@@ -2,6 +2,7 @@ package org.example.chessearch_back.repository;
 
 import org.example.chessearch_back.dto.ChessGameDto;
 import org.example.chessearch_back.dto.GamePreviewDto;
+import org.example.chessearch_back.model.ChessGame;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.support.DataAccessUtils;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -9,9 +10,10 @@ import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.List;
 
 @Repository
@@ -141,6 +143,52 @@ public class ChessGameRepository {
     public long countTotalGames() {
         String sql = "SELECT COUNT(*) FROM chess_game";
         Long count = jdbcTemplate.queryForObject(sql, Long.class);
-        return (count != null) ? count : 0L;
+        return count;
+    }
+    public Integer saveAndReturnId(ChessGame game) {
+        final String sql = "INSERT INTO chess_game (pgn, white, black, result, event, site, date, whiteelo, blackelo, eco) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[] {"id"});
+            ps.setString(1, game.getPgn());
+            ps.setString(2, game.getWhite());
+            ps.setString(3, game.getBlack());
+            ps.setString(4, game.getResult());
+            ps.setString(5, game.getEvent());
+            ps.setString(6, game.getSite());
+            if (game.getDate() != null) {
+                ps.setDate(7, java.sql.Date.valueOf(game.getDate()));
+            } else {
+                ps.setNull(7, Types.DATE);
+            }
+            if (game.getWhiteElo() != null) {
+                ps.setInt(8, game.getWhiteElo());
+            } else {
+                ps.setNull(8, Types.INTEGER);
+            }
+            if (game.getBlackElo() != null) {
+                ps.setInt(9, game.getBlackElo());
+            } else {
+                ps.setNull(9, Types.INTEGER);
+            }
+            ps.setString(10, game.getEco());
+            return ps;
+        }, keyHolder);
+
+        if (keyHolder.getKeyList().size() > 1) {
+            System.err.println("Warning: KeyHolder returned multiple keys: " + keyHolder.getKeyList());
+            for (java.util.Map<String, Object> keyMap : keyHolder.getKeyList()) {
+                if (keyMap.containsKey("id")) {
+                    return ((Number) keyMap.get("id")).intValue();
+                }
+            }
+            throw new RuntimeException("Failed to retrieve 'id' from multiple generated keys.");
+        }
+
+        Number key = keyHolder.getKey();
+        return key.intValue();
     }
 }

@@ -148,14 +148,50 @@ public class IndexingService {
     }
 
     public void indexNewGames(List<Integer> newGameIds) {
-        log.info("Starting to index {} new games...", newGameIds.size());
-        for (Integer gameId : newGameIds) {
+        if (newGameIds == null || newGameIds.isEmpty()) {
+            log.info("indexNewGames called with no new game IDs. Nothing to do.");
+            return;
         }
-        try {
-            indexWriter.commit();
-            log.info("Successfully indexed {} new games.", newGameIds.size());
-        } catch (IOException e) {
-            log.error("Error committing index changes after adding new games", e);
+        log.info("Starting to index {} new games", newGameIds.size());
+        long startTime = System.currentTimeMillis();
+        long documentsIndexed = 0;
+        long documentsSkipped = 0;
+
+        for (Integer gameId : newGameIds) {
+            log.debug("Indexing new game ID: {}", gameId);
+            try {
+                List<FenPosition> positionsInGame = fenPositionRepository.getFensByGameId(gameId);
+                for (FenPosition fenPos:positionsInGame) {
+                    if (fenPos.getMoveNumber()>NUM_SKIP_MOVES) {
+                        try {
+                            indexSinglePosition(fenPos);
+                            documentsIndexed++;
+                        } catch (IOException | IllegalArgumentException e) {
+                            log.error("Failed to index FEN ID {} (New Game ID {}): {}", fenPos.getId(), gameId, e.getMessage());
+                        }
+                    } else {
+                        documentsSkipped++;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to process positions for new game ID {}: {}", gameId, e.getMessage(), e);
+            }
+        }
+
+        if (documentsIndexed > 0) {
+            try {
+                indexWriter.commit();
+                long endTime = System.currentTimeMillis();
+                log.info("Successfully indexed {} new games ({} documents added, {} skipped). Time: {} ms",
+                        newGameIds.size(), documentsIndexed, documentsSkipped, (endTime - startTime));
+            } catch (IOException e) {
+                log.error("Error committing updated index after adding new games", e);
+                try { indexWriter.rollback(); }
+                catch (IOException rbEx)
+                { log.error("Rollback failed after indexNewGames error", rbEx);}
+            }
+        } else {
+            log.info("No new documents for indexing from the provided game ids.");
         }
     }
 }
