@@ -64,9 +64,17 @@ public class ChessGameController {
     @GetMapping
     public ResponseEntity<PaginatedGamePreviewsDto> findGamePreviews(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String eco,
+            @RequestParam(name = "dateFrom", required = false) String dateFromString,
+            @RequestParam(name = "dateTo", required = false) String dateToString,
+            @RequestParam(required = false) String result,
+            @RequestParam(required = false) Integer minElo,
+            @RequestParam(required = false) Integer maxElo,
+            @RequestParam(name = "player", required = false) String playerName){
 
-        log.info("Received request for game previews: page={}, size={}", page, size);
+        log.info("Received request for game previews: page={}, size={}, eco={}, dateFrom={}, dateTo={}, result={}, minElo={}, maxElo={}, player={}",
+                page, size, eco, dateFromString, dateToString, result, minElo, maxElo, playerName);
 
         int effectiveSize = size;
         if (effectiveSize > 50) {
@@ -84,9 +92,11 @@ public class ChessGameController {
         }
 
 
-        PaginatedGamePreviewsDto paginatedPreviews = chessGameService.getGamePreviews(effectivePage, effectiveSize);
+        PaginatedGamePreviewsDto paginatedPreviews = chessGameService.getGamePreviews(
+                effectivePage, effectiveSize, eco, dateFromString, dateToString, result, minElo, maxElo, playerName
+        );
 
-        log.info("Returning {} game previews (total games: {}) for page={}, size={}",
+        log.info("Returning {} game previews (total games matching filters: {}) for page={}, size={}",
                 paginatedPreviews.getPreviews().size(),
                 paginatedPreviews.getTotalGames(),
                 effectivePage,

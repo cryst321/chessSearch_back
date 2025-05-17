@@ -12,8 +12,11 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.util.StringUtils;
 
 import java.sql.*;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Repository
@@ -102,8 +105,13 @@ public class ChessGameRepository {
         return DataAccessUtils.requiredSingleResult(results);
     }
 
-    public List<GamePreviewDto> findGamePreviews(int limit, int offset) {
-        String sql = """
+    public List<GamePreviewDto> findGamePreviews(int limit, int offset,String eco, LocalDate dateFrom, LocalDate dateTo, String result,
+                                                 Integer minElo, Integer maxElo, String playerName) {
+
+        List<Object> queryParams = new ArrayList<>();
+        StringBuilder sqlBuilder = new StringBuilder();
+
+        sqlBuilder.append("""
             WITH RankedFen AS (
                 SELECT
                     fp.game_id,
@@ -126,12 +134,14 @@ public class ChessGameRepository {
                 lf.fen AS last_fen
             FROM chess_game cg
             LEFT JOIN LastFen lf ON cg.id = lf.game_id
-            ORDER BY cg.date DESC, cg.id DESC
+            """);
+        buildWhereClauses(eco, dateFrom, dateTo, result, minElo, maxElo, playerName, queryParams, sqlBuilder);
+        sqlBuilder.append(" ORDER BY cg.date DESC, cg.id DESC ");
+        sqlBuilder.append(" LIMIT ? OFFSET ? ");
 
-            LIMIT ? OFFSET ?;
-            """;
-
-        return jdbcTemplate.query(sql, new GamePreviewDtoRowMapper(), limit, offset);
+        queryParams.add(limit);
+        queryParams.add(offset);
+        return jdbcTemplate.query(sqlBuilder.toString(), new GamePreviewDtoRowMapper(), queryParams.toArray());
     }
 
     public List<Integer> findAllGameIds() {
@@ -140,11 +150,68 @@ public class ChessGameRepository {
         return jdbcTemplate.queryForList(sql, Integer.class);
     }
 
-    public long countTotalGames() {
-        String sql = "SELECT COUNT(*) FROM chess_game";
-        Long count = jdbcTemplate.queryForObject(sql, Long.class);
+    public long countTotalGames(String eco, LocalDate dateFrom, LocalDate dateTo, String result,
+                                Integer minElo, Integer maxElo, String playerName) {
+
+        List<Object> queryParams = new ArrayList<>();
+        StringBuilder sqlBuilder = new StringBuilder("SELECT COUNT(cg.id) FROM chess_game cg ");
+
+        buildWhereClauses(eco, dateFrom, dateTo, result, minElo, maxElo, playerName, queryParams, sqlBuilder);
+
+        Long count = jdbcTemplate.queryForObject(sqlBuilder.toString(), Long.class, queryParams.toArray());
         return count;
     }
+
+    /**
+     * helper method for
+     * @param eco opening
+     * @param dateFrom -
+     * @param dateTo -
+     * @param result who won
+     * @param minElo -
+     * @param maxElo -
+     * @param playerName name if searched
+     * @param queryParams received params
+     * @param sqlBuilder builder for query
+     */
+    private void buildWhereClauses(String eco, LocalDate dateFrom, LocalDate dateTo, String result, Integer minElo, Integer maxElo, String playerName, List<Object> queryParams, StringBuilder sqlBuilder) {
+        StringBuilder whereClause = new StringBuilder(" WHERE 1=1 ");
+
+        if (StringUtils.hasText(eco)) {
+            whereClause.append(" AND LOWER(cg.eco) LIKE LOWER(?) ");
+            queryParams.add("%" + eco + "%");
+        }
+        if (dateFrom != null) {
+            whereClause.append(" AND cg.date >= ? ");
+            queryParams.add(Date.valueOf(dateFrom));
+        }
+        if (dateTo != null) {
+            whereClause.append(" AND cg.date <= ? ");
+            queryParams.add(Date.valueOf(dateTo));
+        }
+        if (StringUtils.hasText(result)) {
+            whereClause.append(" AND cg.result = ? ");
+            queryParams.add(result);
+        }
+        if (minElo != null) {
+            whereClause.append(" AND (cg.whiteelo >= ? OR cg.blackelo >= ?) ");
+            queryParams.add(minElo);
+            queryParams.add(minElo);
+        }
+        if (maxElo != null) {
+            whereClause.append(" AND (cg.whiteelo <= ? OR cg.blackelo <= ?) ");
+            queryParams.add(maxElo);
+            queryParams.add(maxElo);
+        }
+        if (StringUtils.hasText(playerName)) {
+            whereClause.append(" AND (LOWER(cg.white) LIKE LOWER(?) OR LOWER(cg.black) LIKE LOWER(?)) ");
+            queryParams.add("%" + playerName + "%");
+            queryParams.add("%" + playerName + "%");
+        }
+
+        sqlBuilder.append(whereClause);
+    }
+
     public Integer saveAndReturnId(ChessGame game) {
         final String sql = "INSERT INTO chess_game (pgn, white, black, result, event, site, date, whiteelo, blackelo, eco) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
