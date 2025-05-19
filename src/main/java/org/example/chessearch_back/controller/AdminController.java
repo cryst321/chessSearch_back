@@ -102,20 +102,23 @@ public class AdminController {
     /**
      * Handles POST requests to upload a PGN file, process it, save games to the database, and update Lucene index.
      * @param pgnFile The PGN file uploaded by the admin
+     * @param maxGames Optional maximum number of games to process
      * @return ResponseEntity
      */
     @PostMapping("/upload-pgn-file")
-    public ResponseEntity<String> uploadAndProcessPgnFile(@RequestParam("pgnFile") MultipartFile pgnFile) {
+    public ResponseEntity<String> uploadAndProcessPgnFile(
+            @RequestParam("pgnFile") MultipartFile pgnFile,
+            @RequestParam(value = "maxGames", required = false) Integer maxGames) {
         if (pgnFile.isEmpty()) {
             log.warn("Upload request received with an empty file.");
             return ResponseEntity.badRequest().body("Please select a PGN file to upload.");
         }
 
         String originalFilename = pgnFile.getOriginalFilename();
-        log.info("Received PGN file upload: {}", originalFilename);
+        log.info("Received PGN file upload: {} (maxGames: {})", originalFilename, maxGames);
 
         try {
-            List<Integer> newGameIds = gameManagementService.processAndSavePgn(pgnFile);
+            List<Integer> newGameIds = gameManagementService.processAndSavePgn(pgnFile, maxGames);
 
             if (newGameIds == null || newGameIds.isEmpty()) {
                 log.warn("PGN file {} processed, but no new games were added.", originalFilename);
@@ -142,19 +145,22 @@ public class AdminController {
     /**
      * Handles POST requests to upload PGN data as a raw string, process it, save games to the database, and update Lucene index.
      * @param pgnStringData The raw PGN string data from the request body
+     * @param maxGames Optional maximum number of games to process
      * @return ResponseEntity
      */
     @PostMapping("/upload-pgn-string")
-    public ResponseEntity<String> uploadAndProcessPgnString(@RequestBody String pgnStringData) {
+    public ResponseEntity<String> uploadAndProcessPgnString(
+            @RequestBody String pgnStringData,
+            @RequestParam(value = "maxGames", required = false) Integer maxGames) {
         if (pgnStringData == null || pgnStringData.trim().isEmpty()) {
             log.warn("Upload PGN string request received with empty data.");
             return ResponseEntity.badRequest().body("Please provide PGN data in the request body.");
         }
 
-        log.info("Received PGN string data for processing (length: {} chars).", pgnStringData.length());
+        log.info("Received PGN string data for processing (length: {} chars, maxGames: {}).", pgnStringData.length(), maxGames);
 
         try {
-            List<Integer> newGameIds = gameManagementService.processAndSavePgnString(pgnStringData);
+            List<Integer> newGameIds = gameManagementService.processAndSavePgnString(pgnStringData, maxGames);
 
             if (newGameIds == null || newGameIds.isEmpty()) {
                 log.warn("PGN string data processed, but no new games were added to the database.");

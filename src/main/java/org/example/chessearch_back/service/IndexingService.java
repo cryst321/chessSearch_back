@@ -10,6 +10,8 @@ import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.*;
+import org.apache.lucene.search.SearcherManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,16 +43,19 @@ public class IndexingService {
     private final ChessGameRepository chessGameRepository;
     private final PositionEncoder positionEncoder;
     private final IndexWriter indexWriter;
+    private final SearcherManager searcherManager;
 
     @Autowired
     public IndexingService(FenPositionRepository fenPositionRepository,
                            ChessGameRepository chessGameRepository,
                            PositionEncoder positionEncoder,
-                           IndexWriter indexWriter) {
+                           IndexWriter indexWriter,
+                           SearcherManager searcherManager) {
         this.fenPositionRepository = fenPositionRepository;
         this.chessGameRepository = chessGameRepository;
         this.positionEncoder = positionEncoder;
         this.indexWriter = indexWriter;
+        this.searcherManager = searcherManager;
     }
 
     public static void addProgressListener(Consumer<String> listener) {
@@ -224,15 +229,36 @@ public class IndexingService {
      * @param gameId The ID of the game to delete from the index
      */
     public void deleteGameFromIndex(Integer gameId) {
-        log.info("Deleting game ID {} from Lucene index", gameId);
+        log.info("Starting deletion of game ID {} from Lucene index", gameId);
         try {
-            indexWriter.deleteDocuments(new Term(FIELD_GAME_ID, String.valueOf(gameId)));
+            long docsBefore = indexWriter.getDocStats().numDocs;
+            log.info("Number of documents in index before deletion: {}", docsBefore);
+            Query query = new TermQuery(new Term(FIELD_GAME_ID, String.valueOf(gameId)));
+            long deletedCount = indexWriter.deleteDocuments(query);
+            log.info("Number of documents marked for deletion: {}", deletedCount);
             indexWriter.commit();
+            log.info("Changes committed to index");
+            log.info("Starting index merge...");
+            indexWriter.forceMerge(1, true);
+            indexWriter.commit();
+            log.info("Index merge completed");
+            searcherManager.maybeRefresh();
+            log.info("Searcher refreshed");
+            
+            long docsAfter = indexWriter.getDocStats().numDocs;
+            log.info("Number of documents in index after deletion: {}", docsAfter);
+            log.info("Total documents removed: {}", docsBefore - docsAfter);
+            
+            if (docsBefore == docsAfter) {
+                log.warn("No documents were removed despite marking {} for deletion. This might indicate an issue with the index.", deletedCount);
+            }
+            
             log.info("Successfully deleted game ID {} from index", gameId);
         } catch (IOException e) {
-            log.error("Error deleting game ID {} from index: {}", gameId, e.getMessage());
+            log.error("Error deleting game ID {} from index: {}", gameId, e.getMessage(), e);
             try {
                 indexWriter.rollback();
+                log.info("Rolled back changes after error");
             } catch (IOException rbEx) {
                 log.error("Failed to rollback after index deletion error", rbEx);
             }

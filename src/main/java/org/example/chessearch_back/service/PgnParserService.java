@@ -17,10 +17,10 @@ import java.util.List;
 @Service
 public class PgnParserService {
 
-    public List<String> parsePgnToFens(String pgn) {
+    public List<String> parsePgnToFens(String pgn) throws Exception {
         try {
             if (!isValidPgn(pgn)) {
-                throw new IllegalArgumentException("Invalid or incomplete PGN data: missing required tags or move text.");
+                throw new IllegalArgumentException("Invalid or incomplete PGN data: missing required tags or moves.");
             }
 
             File tempFile = File.createTempFile("temp", ".pgn");
@@ -103,6 +103,9 @@ public class PgnParserService {
         }
         if (bracketCount != 0) {
             throw new IllegalArgumentException("Invalid PGN format: unmatched opening bracket '{' found.");
+        }
+        if (inComment) {
+            throw new IllegalArgumentException("Invalid PGN format: unclosed comment found.");
         }
 
         return true;

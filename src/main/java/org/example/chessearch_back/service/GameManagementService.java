@@ -50,12 +50,13 @@ public class GameManagementService {
      * Processes an uploaded PGN file, saves games and their FENs to the database.
      *
      * @param pgnFile The MultipartFile containing PGN data.
+     * @param maxGames The maximum number of games to process.
      * @return A list of database IDs for the newly saved games.
      * @throws IOException If an error occurs reading the file.
      * @throws Exception   For other processing errors (e.g., PGN parsing, DB issues).
      */
     @Transactional
-    public List<Integer> processAndSavePgn(MultipartFile pgnFile) throws IOException, Exception {
+    public List<Integer> processAndSavePgn(MultipartFile pgnFile, Integer maxGames) throws IOException, Exception {
         if (pgnFile == null || pgnFile.isEmpty()) {
             log.warn("processAndSavePgn called with an empty or null file.");
             throw new IllegalArgumentException("Please select a valid PGN file to upload");
@@ -91,7 +92,7 @@ public class GameManagementService {
         //file processing
         try (InputStream inputStream = pgnFile.getInputStream();
              BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            return processPgnWithReader(reader);
+            return processPgnWithReader(reader, maxGames);
         } catch (IOException e) {
             log.error("Error reading PGN file {}: {}", originalFilename, e.getMessage());
             throw new IOException("Error reading PGN file: " + e.getMessage());
@@ -101,27 +102,29 @@ public class GameManagementService {
     /**
      * Processes a PGN string (one or multiple games), saves games and their FENs in the database
      * @param pgnStringData The String containing PGN data.
+     * @param maxGames The maximum number of games to process.
      * @return A list of database IDs for saved games.
      */
     @Transactional
-    public List<Integer> processAndSavePgnString(String pgnStringData) throws Exception {
+    public List<Integer> processAndSavePgnString(String pgnStringData, Integer maxGames) throws Exception {
         if (pgnStringData == null || pgnStringData.trim().isEmpty()) {
             log.warn("processAndSavePgnString called with an empty or null string.");
             return new ArrayList<>();
         }
         log.info("Processing PGN string data (length: {} chars)...", pgnStringData.length());
         try (BufferedReader reader = new BufferedReader(new StringReader(pgnStringData))) {
-            return processPgnWithReader(reader);
+            return processPgnWithReader(reader, maxGames);
         }
     }
 
     /**
      * Core logic to process PGN data
      * @param reader The BufferedReader to read PGN data from
+     * @param maxGames The maximum number of games to process.
      * @return A list of database IDs for saved games
      * @throws IOException If an error occurs reading
      */
-    private List<Integer> processPgnWithReader(BufferedReader reader) throws IOException {
+    private List<Integer> processPgnWithReader(BufferedReader reader, Integer maxGames) throws IOException {
         List<Integer> newGameIds = new ArrayList<>();
         StringBuilder currentGamePgn = new StringBuilder();
         String line;
@@ -134,6 +137,10 @@ public class GameManagementService {
                     if (newGameId != null) {
                         newGameIds.add(newGameId);
                         gamesProcessedInSource++;
+                        if (maxGames != null && gamesProcessedInSource >= maxGames) {
+                            log.info("Reached maximum number of games to process ({}). Stopping.", maxGames);
+                            break;
+                        }
                     }
                 } catch (Exception e) {
                     log.error("Error processing a single game block from PGN source: {}. PGN snippet: {}",
@@ -146,7 +153,7 @@ public class GameManagementService {
             }
         }
 
-        if (!currentGamePgn.isEmpty()) {
+        if (!currentGamePgn.isEmpty() && (maxGames == null || gamesProcessedInSource < maxGames)) {
             try {
                 Integer newGameId = processSinglePgnGameString(currentGamePgn.toString());
                 if (newGameId != null) {
