@@ -68,4 +68,21 @@ public class FenPositionRepository {
             }
         });
     }
+
+    /**
+     * Deletes all FEN positions for a specific game
+     * @param gameId id of the game whose positions should be deleted
+     */
+    public void deleteByGameId(int gameId) {
+        String sql = "DELETE FROM fen_position WHERE game_id = ?";
+        jdbcTemplate.update(sql, gameId);
+    }
+
+    /**
+     * Deletes all FEN positions from the database
+     */
+    public void deleteAll() {
+        String sql = "DELETE FROM fen_position";
+        jdbcTemplate.update(sql);
+    }
 }

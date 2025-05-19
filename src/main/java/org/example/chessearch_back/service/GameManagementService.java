@@ -30,6 +30,7 @@ public class GameManagementService {
     private final PgnParserService pgnParserService;
     private final ChessGameRepository chessGameRepository;
     private final FenPositionRepository fenPositionRepository;
+    private final IndexingService indexingService;
 
     private static final Pattern PGN_TAG_PATTERN = Pattern.compile("\\[\\s*(\\w+)\\s*\"([^\"]*)\"\\s*]");
 
@@ -37,10 +38,12 @@ public class GameManagementService {
     @Autowired
     public GameManagementService(PgnParserService pgnParserService,
                                  ChessGameRepository chessGameRepository,
-                                 FenPositionRepository fenPositionRepository) {
+                                 FenPositionRepository fenPositionRepository,
+                                 IndexingService indexingService) {
         this.pgnParserService = pgnParserService;
         this.chessGameRepository = chessGameRepository;
         this.fenPositionRepository = fenPositionRepository;
+        this.indexingService = indexingService;
     }
 
     /**
@@ -249,6 +252,49 @@ public class GameManagementService {
         } catch (NumberFormatException e) {
             log.warn("Could not parse integer: '{}' - {}", s, e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Deletes a game from both the database and search index
+     * @param gameId The ID of the game to delete
+     * @throws Exception if deletion fails
+     */
+    @Transactional
+    public void deleteGame(Integer gameId) throws Exception {
+        if (gameId == null) {
+            throw new IllegalArgumentException("Game ID cannot be null");
+        }
+
+        log.info("Deleting game ID: {}", gameId);
+        try {
+            indexingService.deleteGameFromIndex(gameId);
+            fenPositionRepository.deleteByGameId(gameId);
+            chessGameRepository.deleteById(gameId);
+            
+            log.info("Successfully deleted game ID: {}", gameId);
+        } catch (Exception e) {
+            log.error("Error deleting game ID {}: {}", gameId, e.getMessage());
+            throw new Exception("Failed to delete game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Clears all games from both database and search index
+     * @throws Exception if clearing fails
+     */
+    @Transactional
+    public void clearAllGames() throws Exception {
+        log.info("Clearing all games from database and index");
+        try {
+            indexingService.clearIndex();
+            fenPositionRepository.deleteAll();
+            chessGameRepository.deleteAll();
+            
+            log.info("Successfully cleared all games");
+        } catch (Exception e) {
+            log.error("Error clearing all games: {}", e.getMessage());
+            throw new Exception("Failed to clear games: " + e.getMessage());
         }
     }
 }

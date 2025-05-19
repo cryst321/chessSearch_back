@@ -258,4 +258,21 @@ public class ChessGameRepository {
         Number key = keyHolder.getKey();
         return key.intValue();
     }
+
+    /**
+     * Deletes a chess game by its ID
+     * @param id of the game to delete
+     */
+    public void deleteById(int id) {
+        String sql = "DELETE FROM chess_game WHERE id = ?";
+        jdbcTemplate.update(sql, id);
+    }
+
+    /**
+     * Deletes all chess games from the database
+     */
+    public void deleteAll() {
+        String sql = "DELETE FROM chess_game";
+        jdbcTemplate.update(sql);
+    }
 }

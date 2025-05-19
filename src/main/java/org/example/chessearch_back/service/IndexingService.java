@@ -16,7 +16,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 @Service
 public class IndexingService {
@@ -24,6 +28,7 @@ public class IndexingService {
     private static final Logger log = LoggerFactory.getLogger(IndexingService.class);
 
     private static final int NUM_SKIP_MOVES = 24;
+    private static final List<Consumer<String>> progressListeners = new ArrayList<>();
 
     public static final String FIELD_TERMS = "terms";
     public static final String FIELD_FEN_ID = "fen_id";
@@ -48,6 +53,20 @@ public class IndexingService {
         this.indexWriter = indexWriter;
     }
 
+    public static void addProgressListener(Consumer<String> listener) {
+        progressListeners.add(listener);
+    }
+
+    private void notifyProgress(String message) {
+        progressListeners.forEach(listener -> {
+            try {
+                listener.accept(message);
+            } catch (Exception e) {
+                log.error("Error notifying progress listener: {}", e.getMessage());
+            }
+        });
+    }
+
     /**
      * Builds or rebuilds the entire Lucene index from the FEN positions in the database
      */
@@ -62,6 +81,7 @@ public class IndexingService {
 
         List<Integer> allGameIds = chessGameRepository.findAllGameIds();
         log.info("Found {} games to potentially index.", allGameIds.size());
+        notifyProgress("Found " + allGameIds.size() + " games to index");
 
         for (Integer gameId : allGameIds) {
             long indexedInGame = 0;
@@ -86,7 +106,9 @@ public class IndexingService {
                 totalDocumentsSkipped += skippedInGame;
                 totalGamesProcessed++;
                 if (totalGamesProcessed % 100 == 0) {
-                    log.info("Progress: Processed {} / {} games", totalGamesProcessed, allGameIds.size());
+                    String progressMsg = String.format("Progress: Processed %d / %d games", totalGamesProcessed, allGameIds.size());
+                    log.info(progressMsg);
+                    notifyProgress(progressMsg);
                 }
 
             } catch (Exception e) {
@@ -94,16 +116,18 @@ public class IndexingService {
             }
         }
 
-
         try {
             log.info("Committing final changes to Lucene index...");
+            notifyProgress("Committing final changes to Lucene index...");
             indexWriter.commit();
             long endTime = System.currentTimeMillis();
-            log.info("Lucene index build completed. Games Processed: {}, Documents Indexed: {}, Documents Skipped: {}. Time: {} ms",
+            String completionMsg = String.format("Lucene index build completed. Games processed: %d, documents indexed: %d, documents skipped: %d. Time: %d ms",
                     totalGamesProcessed, totalDocumentsIndexed, totalDocumentsSkipped, (endTime - startTime));
+            log.info(completionMsg);
+            notifyProgress(completionMsg);
         } catch (IOException e) {
             log.error("Error committing Lucene index changes", e);
-
+            notifyProgress("Error: " + e.getMessage());
             try { indexWriter.rollback(); } catch (IOException rbEx) {
                 log.error("Couldn't roll back");
             }
@@ -192,6 +216,47 @@ public class IndexingService {
             }
         } else {
             log.info("No new documents for indexing from the provided game ids.");
+        }
+    }
+
+    /**
+     * Deletes all positions for a specific game from the Lucene index
+     * @param gameId The ID of the game to delete from the index
+     */
+    public void deleteGameFromIndex(Integer gameId) {
+        log.info("Deleting game ID {} from Lucene index", gameId);
+        try {
+            indexWriter.deleteDocuments(new Term(FIELD_GAME_ID, String.valueOf(gameId)));
+            indexWriter.commit();
+            log.info("Successfully deleted game ID {} from index", gameId);
+        } catch (IOException e) {
+            log.error("Error deleting game ID {} from index: {}", gameId, e.getMessage());
+            try {
+                indexWriter.rollback();
+            } catch (IOException rbEx) {
+                log.error("Failed to rollback after index deletion error", rbEx);
+            }
+            throw new RuntimeException("Failed to delete game from index", e);
+        }
+    }
+
+    /**
+     * Get current index statistics
+     * @return Map containing index statistics
+     */
+    public Map<String, Object> getIndexStats() throws IOException {
+        Map<String, Object> stats = new HashMap<>();
+        try {
+            long numDocs = indexWriter.getDocStats().numDocs;
+            stats.put("totalDocuments", numDocs);
+            
+            List<Integer> allGameIds = chessGameRepository.findAllGameIds();
+            stats.put("totalGames", allGameIds.size());
+            
+            return stats;
+        } catch (Exception e) {
+            log.error("Error getting index stats: {}", e.getMessage());
+            throw new IOException("Failed to get index statistics", e);
         }
     }
 }

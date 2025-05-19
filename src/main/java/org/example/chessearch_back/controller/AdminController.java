@@ -10,8 +10,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST Controller for admin tasks
@@ -39,7 +42,13 @@ public class AdminController {
     public ResponseEntity<String> rebuildIndex() {
         log.warn("Received request to rebuild Lucene index");
         try {
-            indexingService.buildIndex();
+            new Thread(() -> {
+                try {
+                    indexingService.buildIndex();
+                } catch (Exception e) {
+                    log.error("Error during index rebuild: {}", e.getMessage(), e);
+                }
+            }).start();
 
             String message = "Lucene index rebuild initiated";
             log.info(message);
@@ -50,6 +59,25 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to rebuild index: " + e.getMessage());
         }
+    }
+
+    /**
+     * SSE endpoint for index rebuild progress
+     */
+    @GetMapping("/rebuild-progress")
+    @PreAuthorize("hasRole('ADMIN')")
+    public SseEmitter getRebuildProgress() {
+        SseEmitter emitter = new SseEmitter(-1L); 
+        IndexingService.addProgressListener(progress -> {
+            try {
+                emitter.send(SseEmitter.event()
+                    .name("progress")
+                    .data(progress));
+            } catch (IOException e) {
+                log.warn("Error sending progress update: {}", e.getMessage());
+            }
+        });
+        return emitter;
     }
 
     /**
@@ -145,6 +173,55 @@ public class AdminController {
             log.error("Failed to process PGN string data: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Could not process PGN string data: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Deletes a specific game from both database and index
+     * @param gameId id of the game to delete
+     * @return ResponseEntity with success or error message
+     */
+    @DeleteMapping("/games/{gameId}")
+    public ResponseEntity<?> deleteGame(@PathVariable Integer gameId) {
+        try {
+            gameManagementService.deleteGame(gameId);
+            return ResponseEntity.ok().body("Game deleted successfully");
+        } catch (Exception e) {
+            log.error("Error deleting game {}: {}", gameId, e.getMessage());
+            return ResponseEntity.badRequest().body("Failed to delete game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Clears all games from both database and index
+     * @return ResponseEntity with success or error message
+     */
+    @DeleteMapping("/games")
+    public ResponseEntity<?> clearAllData() {
+        try {
+            gameManagementService.clearAllGames();
+            return ResponseEntity.ok().body("All games cleared successfully");
+        } catch (Exception e) {
+            log.error("Error clearing all games: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("Failed to clear games: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get current index statistics
+     * @return ResponseEntity with index statistics
+     */
+    @GetMapping("/index-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+    public ResponseEntity<Map<String, Object>> getIndexStats() {
+        try {
+            Map<String, Object> stats = indexingService.getIndexStats();
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("Error getting index stats: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 }
