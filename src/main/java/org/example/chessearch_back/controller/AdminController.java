@@ -203,6 +203,7 @@ public class AdminController {
      * @return ResponseEntity with success or error message
      */
     @DeleteMapping("/games")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> clearAllData() {
         try {
             gameManagementService.clearAllGames();

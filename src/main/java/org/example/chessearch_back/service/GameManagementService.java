@@ -7,6 +7,7 @@ import org.example.chessearch_back.repository.FenPositionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,6 +32,7 @@ public class GameManagementService {
     private final ChessGameRepository chessGameRepository;
     private final FenPositionRepository fenPositionRepository;
     private final IndexingService indexingService;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final Pattern PGN_TAG_PATTERN = Pattern.compile("\\[\\s*(\\w+)\\s*\"([^\"]*)\"\\s*]");
 
@@ -39,11 +41,13 @@ public class GameManagementService {
     public GameManagementService(PgnParserService pgnParserService,
                                  ChessGameRepository chessGameRepository,
                                  FenPositionRepository fenPositionRepository,
-                                 IndexingService indexingService) {
+                                 IndexingService indexingService,
+                                 JdbcTemplate jdbcTemplate) {
         this.pgnParserService = pgnParserService;
         this.chessGameRepository = chessGameRepository;
         this.fenPositionRepository = fenPositionRepository;
         this.indexingService = indexingService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -298,7 +302,11 @@ public class GameManagementService {
             fenPositionRepository.deleteAll();
             chessGameRepository.deleteAll();
             
-            log.info("Successfully cleared all games");
+            // Reset sequences to 1
+            jdbcTemplate.execute("ALTER SEQUENCE chess_game_id_seq RESTART WITH 1");
+            jdbcTemplate.execute("ALTER SEQUENCE fen_position_id_seq RESTART WITH 1");
+            
+            log.info("Successfully cleared all games and reset sequences");
         } catch (Exception e) {
             log.error("Error clearing all games: {}", e.getMessage());
             throw new Exception("Failed to clear games: " + e.getMessage());
