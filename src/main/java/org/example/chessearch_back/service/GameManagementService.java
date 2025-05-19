@@ -4,7 +4,6 @@ import org.example.chessearch_back.model.ChessGame;
 import org.example.chessearch_back.model.FenPosition;
 import org.example.chessearch_back.repository.ChessGameRepository;
 import org.example.chessearch_back.repository.FenPositionRepository;
-import org.example.chessearch_back.service.PgnParserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -55,15 +53,45 @@ public class GameManagementService {
      */
     @Transactional
     public List<Integer> processAndSavePgn(MultipartFile pgnFile) throws IOException, Exception {
-        if (pgnFile.isEmpty()) {
-            log.warn("processAndSavePgn called with an empty file.");
-            return new ArrayList<>();
+        if (pgnFile == null || pgnFile.isEmpty()) {
+            log.warn("processAndSavePgn called with an empty or null file.");
+            throw new IllegalArgumentException("Please select a valid PGN file to upload");
         }
-        log.info("Processing PGN file: {}", pgnFile.getOriginalFilename());
-        // Use a BufferedReader to read the PGN content line by line
+
+        String originalFilename = pgnFile.getOriginalFilename();
+        if (!originalFilename.toLowerCase().endsWith(".pgn")) {
+            log.warn("Invalid file type uploaded: {}", originalFilename);
+            throw new IllegalArgumentException("Only .pgn files are allowed");
+        }
+
+        log.info("Processing PGN file: {}", originalFilename);
+        
+        //validating pgn file
+        try (InputStream inputStream = pgnFile.getInputStream();
+             BufferedReader previewReader = new BufferedReader(new InputStreamReader(inputStream))) {
+            
+            StringBuilder preview = new StringBuilder();
+            String line;
+            int lineCount = 0;
+            while ((line = previewReader.readLine()) != null && lineCount < 10) {
+                preview.append(line).append("\n");
+                lineCount++;
+            }
+             
+            if (!preview.toString().contains("[Event ") || !preview.toString().contains("[White ") || 
+                !preview.toString().contains("[Black ")) {
+                log.warn("Invalid PGN file structure in: {}", originalFilename);
+                throw new IllegalArgumentException("missing required tags.");
+            }
+        }
+
+        //file processing
         try (InputStream inputStream = pgnFile.getInputStream();
              BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
             return processPgnWithReader(reader);
+        } catch (IOException e) {
+            log.error("Error reading PGN file {}: {}", originalFilename, e.getMessage());
+            throw new IOException("Error reading PGN file: " + e.getMessage());
         }
     }
 
@@ -73,7 +101,7 @@ public class GameManagementService {
      * @return A list of database IDs for saved games.
      */
     @Transactional
-    public List<Integer> processAndSavePgnString(String pgnStringData) throws IOException, Exception {
+    public List<Integer> processAndSavePgnString(String pgnStringData) throws Exception {
         if (pgnStringData == null || pgnStringData.trim().isEmpty()) {
             log.warn("processAndSavePgnString called with an empty or null string.");
             return new ArrayList<>();
@@ -145,27 +173,31 @@ public class GameManagementService {
             return null;
         }
 
-        ChessGame gameToSave = new ChessGame();
-        gameToSave.setPgn(pgnGameString.trim());
-        gameToSave.setWhite(tags.get("White"));
-        gameToSave.setBlack(tags.get("Black"));
-        gameToSave.setResult(tags.get("Result"));
-        gameToSave.setEvent(tags.get("Event"));
-        gameToSave.setSite(tags.get("Site"));
-        gameToSave.setDate(parsePgnDate(tags.get("UTCDate")));
-        gameToSave.setWhiteElo(parsePgnInteger(tags.get("WhiteElo")));
-        gameToSave.setBlackElo(parsePgnInteger(tags.get("BlackElo")));
-        gameToSave.setEco(tags.get("ECO"));
+        try {
+            List<String> fens = pgnParserService.parsePgnToFens(pgnGameString);
+            if (fens == null || fens.isEmpty()) {
+                log.warn("No valid positions extracted from PGN. PGN: {}", substring);
+                return null;
+            }
 
-        Integer gameId = chessGameRepository.saveAndReturnId(gameToSave);
-        if (gameId == null) {
-            log.error("Failed to save game to database. PGN: {}", substring);
-            return null;
-        }
+            ChessGame gameToSave = new ChessGame();
+            gameToSave.setPgn(pgnGameString.trim());
+            gameToSave.setWhite(tags.get("White"));
+            gameToSave.setBlack(tags.get("Black"));
+            gameToSave.setResult(tags.get("Result"));
+            gameToSave.setEvent(tags.get("Event"));
+            gameToSave.setSite(tags.get("Site"));
+            gameToSave.setDate(parsePgnDate(tags.get("UTCDate")));
+            gameToSave.setWhiteElo(parsePgnInteger(tags.get("WhiteElo")));
+            gameToSave.setBlackElo(parsePgnInteger(tags.get("BlackElo")));
+            gameToSave.setEco(tags.get("ECO"));
 
-        List<String> fens = pgnParserService.parsePgnToFens(pgnGameString);
+            Integer gameId = chessGameRepository.saveAndReturnId(gameToSave);
+            if (gameId == null) {
+                log.error("Failed to save game to database. PGN: {}", substring);
+                return null;
+            }
 
-        if (fens != null && !fens.isEmpty()) {
             List<FenPosition> fenPositionsToSave = new ArrayList<>();
             for (int i = 0; i < fens.size(); i++) {
                 FenPosition fenPos = new FenPosition();
@@ -175,9 +207,15 @@ public class GameManagementService {
                 fenPositionsToSave.add(fenPos);
             }
             fenPositionRepository.saveBatch(fenPositionsToSave);
-        }
 
-        return gameId;
+            return gameId;
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid PGN format: {}. PGN: {}", e.getMessage(), substring);
+            throw new IllegalArgumentException("Invalid PGN format: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Error processing PGN: {}. PGN: {}", e.getMessage(), substring);
+            throw new Exception("Error processing PGN: " + e.getMessage());
+        }
     }
 
 
